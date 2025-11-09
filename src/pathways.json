@@ -1,0 +1,16 @@
+{
+  "Machine Learning Engineer": {
+    "AA": "A.A. in Computer Science (MDC)",
+    "BS": "B.S. in Data Science (FIU)",
+    "MS": "M.S. in Machine Learning (UF)",
+    "Certifications": ["TensorFlow Developer", "AWS Certified ML Engineer"],
+    "Exams": ["FE Exam (optional for some engineering tracks)"]
+  },
+  "Architect": {
+    "AA": "A.A. in Architecture (MDC)",
+    "BS": "B.S. in Architecture (FIU)",
+    "MS": "M.S. in Architectural Design (UF)",
+    "Certifications": ["LEED Accredited Professional"],
+    "Exams": ["Architect Registration Exam (ARE)"]
+  }
+}
