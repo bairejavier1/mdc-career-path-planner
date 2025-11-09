@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { invokeLLM } from "@/api/geminiClient";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles, TrendingUp, FileDown } from "lucide-react";
+import { Sparkles, TrendingUp, Download } from "lucide-react";
 import { motion } from "framer-motion";
-import html2pdf from "html2pdf.js";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import ChatMessage from "../components/chat/ChatMessage";
 import ChatInput from "../components/chat/ChatInput";
 import SummaryCard from "../components/pathway/SummaryCard";
@@ -19,8 +20,8 @@ export default function Home() {
     },
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [pathway, setPathway] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [pathway, setPathway] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () =>
@@ -42,8 +43,30 @@ export default function Home() {
       const response = await invokeLLM({ prompt: message });
       console.log("AI response:", response);
 
-      if (response.pathway_data) {
-        setPathway(response.pathway_data);
+      let parsedData = null;
+
+      // Normalize the response: sometimes it's stringified JSON
+      if (typeof response === "string") {
+        try {
+          parsedData = JSON.parse(response);
+        } catch {
+          parsedData = null;
+        }
+      } else if (response.pathway_data) {
+        parsedData = response.pathway_data;
+      } else if (response.output) {
+        try {
+          parsedData =
+            typeof response.output === "string"
+              ? JSON.parse(response.output)
+              : response.output;
+        } catch {
+          parsedData = null;
+        }
+      }
+
+      if (parsedData && typeof parsedData === "object") {
+        setPathway(parsedData);
         setConversation([
           ...newConv,
           {
@@ -54,12 +77,13 @@ export default function Home() {
           },
         ]);
       } else {
+        // fallback plain text reply
         setConversation([
           ...newConv,
           {
             role: "assistant",
             content:
-              typeof response.output === "string"
+              response.output && typeof response.output === "string"
                 ? response.output
                 : "I'm not sure yet — could you tell me a bit more?",
             timestamp: new Date().toISOString(),
@@ -82,21 +106,41 @@ export default function Home() {
     }
   };
 
-  // 🧾 PDF Export Function
+  // 🧾 Export Pathway as PDF
   const handleExportPDF = async () => {
     try {
       setExporting(true);
       const element = document.getElementById("pathway-results");
+      await new Promise((r) => setTimeout(r, 300)); // let UI finish rendering
 
-      const options = {
-        margin: 0.5,
-        filename: "My_Educational_Pathway.pdf",
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
-      };
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
 
-      await html2pdf().from(element).set(options).save();
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+      const pdf = new jsPDF("p", "mm", "a4");
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 10;
+
+      pdf.addImage(imgData, "JPEG", 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 10, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save("My_Educational_Pathway.pdf");
     } catch (err) {
       console.error("Error generating PDF:", err);
     } finally {
@@ -179,7 +223,7 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* --- CHAT BOX --- */}
+        {/* --- CHAT --- */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -188,7 +232,6 @@ export default function Home() {
           <Card className="border-slate-200 shadow-2xl">
             <CardContent className="p-6">
               <div className="h-[500px] flex flex-col">
-                {/* Chat messages */}
                 <div className="flex-1 overflow-y-auto mb-4 space-y-2 pr-2">
                   {conversation.map((msg, i) => (
                     <ChatMessage key={i} message={msg} />
@@ -215,7 +258,6 @@ export default function Home() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input field */}
                 <div className="border-t border-slate-200 pt-4">
                   <ChatInput
                     onSend={handleSendMessage}
@@ -231,49 +273,42 @@ export default function Home() {
         {/* --- GENERATED PATHWAY --- */}
         {pathway && (
           <motion.div
+            id="pathway-results"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.8 }}
             className="mt-12 space-y-8"
           >
-            {/* Export button */}
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-800">
+                Your Personalized Academic Pathway
+              </h2>
               <button
                 onClick={handleExportPDF}
                 disabled={exporting}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-md"
+                className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                <FileDown className="w-4 h-4" />
-                {exporting ? "Generating PDF..." : "Export to PDF"}
+                <Download className="w-5 h-5" />
+                {exporting ? "Exporting..." : "Export PDF"}
               </button>
             </div>
 
-            {/* Pathway results container */}
-            <div
-              id="pathway-results"
-              className="space-y-8 bg-white p-6 rounded-xl shadow-lg"
-            >
+            {pathway.mdc_phase && (
+              <PathwayStep phase={pathway.mdc_phase} index={0} totalPhases={3} />
+            )}
+            {pathway.fiu_phase && (
+              <PathwayStep phase={pathway.fiu_phase} index={1} totalPhases={3} />
+            )}
+            {pathway.advanced_phase?.masters && (
               <PathwayStep
-                phase={pathway.mdc_phase}
-                index={0}
+                phase={pathway.advanced_phase.masters}
+                index={2}
                 totalPhases={3}
               />
-              <PathwayStep
-                phase={pathway.fiu_phase}
-                index={1}
-                totalPhases={3}
-              />
-              {pathway.advanced_phase?.masters && (
-                <PathwayStep
-                  phase={pathway.advanced_phase.masters}
-                  index={2}
-                  totalPhases={3}
-                />
-              )}
-              {pathway.total_summary && (
-                <SummaryCard summary={pathway.total_summary} />
-              )}
-            </div>
+            )}
+            {pathway.total_summary && (
+              <SummaryCard summary={pathway.total_summary} />
+            )}
           </motion.div>
         )}
       </div>
