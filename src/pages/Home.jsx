@@ -23,6 +23,7 @@ export default function Home() {
   const [exporting, setExporting] = useState(false);
   const [pathway, setPathway] = useState(null);
   const messagesEndRef = useRef(null);
+  const pathwayRef = useRef(null);
 
   const scrollToBottom = () =>
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -45,7 +46,6 @@ export default function Home() {
 
       let parsedData = null;
 
-      // Normalize the response: sometimes it's stringified JSON
       if (typeof response === "string") {
         try {
           parsedData = JSON.parse(response);
@@ -77,7 +77,6 @@ export default function Home() {
           },
         ]);
       } else {
-        // fallback plain text reply
         setConversation([
           ...newConv,
           {
@@ -106,50 +105,84 @@ export default function Home() {
     }
   };
 
-  // 🧾 Export Pathway as PDF
-  const handleExportPDF = async () => {
-    try {
-      setExporting(true);
-      const element = document.getElementById("pathway-results");
-      await new Promise((r) => setTimeout(r, 300)); // let UI finish rendering
+  // 🧾 Export Pathway as PDF (stable multi-page version)
+const exportJSONToPDF = () => {
+  if (!pathway) return;
 
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
+  const doc = new jsPDF();
+  let y = 20;
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.98);
-      const pdf = new jsPDF("p", "mm", "a4");
-
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth - 20;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let position = 10;
-
-      pdf.addImage(imgData, "JPEG", 10, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight + 10;
-        pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 10, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      pdf.save("My_Educational_Pathway.pdf");
-    } catch (err) {
-      console.error("Error generating PDF:", err);
-    } finally {
-      setExporting(false);
-    }
+  const addLine = (text, bold = false) => {
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.text(text, 15, y);
+    y += 8;
+    if (y > 270) { doc.addPage(); y = 20; } // simple page break
   };
 
+  // Title
+  addLine("Your Academic Pathway", true);
+
+  // MDC Phase
+  if (pathway.mdc_phase) {
+    addLine("", true);
+    addLine(`MDC Phase: ${pathway.mdc_phase.degree_name}`, true);
+    addLine(`Duration: ${pathway.mdc_phase.duration_semesters} semesters`);
+    addLine(`Total Cost: $${pathway.mdc_phase.total_cost}`);
+    addLine(`Credits: ${pathway.mdc_phase.total_credits}`);
+    addLine("Courses:");
+    pathway.mdc_phase.courses.forEach(c => {
+      addLine(`  • ${c.code} - ${c.name} (${c.credits} cr)`);
+    });
+  }
+
+  // FIU Phase
+  if (pathway.fiu_phase) {
+    addLine("", true);
+    addLine(`FIU Phase: ${pathway.fiu_phase.degree_name}`, true);
+    addLine(`Transfer Credits: ${pathway.fiu_phase.transfer_credits}`);
+    addLine(`Duration: ${pathway.fiu_phase.duration_semesters} semesters`);
+    addLine(`Total Cost: $${pathway.fiu_phase.total_cost}`);
+    addLine(`Remaining Credits: ${pathway.fiu_phase.remaining_credits}`);
+    addLine("Required Courses:");
+    pathway.fiu_phase.required_courses.forEach(c => {
+      addLine(`  • ${c.code} - ${c.name} (${c.credits} cr)`);
+    });
+  }
+
+  // Advanced Phase
+  if (pathway.advanced_phase) {
+    if (pathway.advanced_phase.masters) {
+      const m = pathway.advanced_phase.masters;
+      addLine("", true);
+      addLine(`Masters: ${m.degree_name}`, true);
+      addLine(`Duration: ${m.duration_years} years`);
+      addLine(`Cost: $${m.total_cost}`);
+      addLine(`Credits: ${m.total_credits}`);
+    }
+
+    if (pathway.advanced_phase.phd) {
+      const p = pathway.advanced_phase.phd;
+      addLine("", true);
+      addLine(`PhD: ${p.degree_name}`, true);
+      addLine(`Duration: ${p.duration_years} years`);
+      addLine(`Funding: ${p.funding_available ? "Yes" : "No"}`);
+    }
+  }
+
+  // Summary
+  if (pathway.total_summary) {
+    addLine("", true);
+    addLine("TOTAL SUMMARY", true);
+    addLine(`Years: ${pathway.total_summary.total_years}`);
+    addLine(`Total Cost: $${pathway.total_summary.total_cost}`);
+    addLine(`Career Outlook: ${pathway.total_summary.career_outlook}`);
+  }
+
+  // Save
+  doc.save("My_Educational_Pathway.pdf");
+};
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-white to-blue-50">
+    <div className="min-h-screen bg-linear-to-br from-purple-900 via-white to-blue-50">
       <div className="max-w-5xl mx-auto px-4 py-12 md:py-20">
         {/* --- HEADER --- */}
         <motion.div
@@ -223,7 +256,7 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* --- CHAT --- */}
+        {/* --- CHAT BOX --- */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -238,7 +271,7 @@ export default function Home() {
                   ))}
                   {isProcessing && (
                     <div className="flex gap-3 mb-4">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-900 to-blue-700 flex items-center justify-center flex-shrink-0">
                         <motion.div
                           animate={{ rotate: 360 }}
                           transition={{
@@ -257,7 +290,6 @@ export default function Home() {
                   )}
                   <div ref={messagesEndRef} />
                 </div>
-
                 <div className="border-t border-slate-200 pt-4">
                   <ChatInput
                     onSend={handleSendMessage}
@@ -270,9 +302,10 @@ export default function Home() {
           </Card>
         </motion.div>
 
-        {/* --- GENERATED PATHWAY --- */}
+        {/* --- GENERATED PATHWAY BELOW CHAT --- */}
         {pathway && (
           <motion.div
+            ref={pathwayRef}
             id="pathway-results"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -284,9 +317,9 @@ export default function Home() {
                 Your Personalized Academic Pathway
               </h2>
               <button
-                onClick={handleExportPDF}
-                disabled={exporting}
-                className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                onClick={exportJSONToPDF}
+                disabled={exporting || !pathway}
+                className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
                 <Download className="w-5 h-5" />
                 {exporting ? "Exporting..." : "Export PDF"}

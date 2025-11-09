@@ -14,7 +14,10 @@ app = FastAPI(title="ElevatePath API")
 # Allow requests from your frontend (Vite default port)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",  # sometimes Vite runs here
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

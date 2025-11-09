@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+
+/* src/index.css or any global CSS file */
+@media print {
+  .pdf-export-clone * {
+    color: #000 !important;
+    background-color: #fff !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+    fill: #000 !important;
+    stroke: #000 !important;
+  }
+}
