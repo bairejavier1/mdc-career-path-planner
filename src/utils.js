@@ -1,4 +1,9 @@
-export function createPageUrl(path) {
-  // simple helper to build a page path
-  return `${window.location.origin}/${path.replace(/^\//, "")}`;
+// src/utils.js
+export function createPageUrl(pageName) {
+  const map = {
+    Home: "/",
+    MyPathways: "/mypathways",
+    PathwayResults: "/pathwayresults"
+  };
+  return map[pageName] || "/";
 }
