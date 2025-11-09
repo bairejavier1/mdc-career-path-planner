@@ -1,0 +1,179 @@
+{
+    "name": "SavedPathway",
+    "type": "object",
+    "properties": {
+      "career_goal": {
+        "type": "string",
+        "description": "Target job title"
+      },
+      "current_education": {
+        "type": "string",
+        "description": "Current education level"
+      },
+      "target_education": {
+        "type": "string",
+        "description": "Target education level to achieve"
+      },
+      "two_year_college": {
+        "type": "string",
+        "description": "Selected 2-year college for Associate's degree"
+      },
+      "four_year_college": {
+        "type": "string",
+        "description": "Selected 4-year college for Bachelor's and above"
+      },
+      "conversation": {
+        "type": "array",
+        "description": "Chat history with the AI assistant",
+        "items": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "enum": [
+                "user",
+                "assistant"
+              ]
+            },
+            "content": {
+              "type": "string"
+            },
+            "timestamp": {
+              "type": "string"
+            }
+          }
+        },
+        "default": []
+      },
+      "pathway_data": {
+        "type": "object",
+        "description": "Generated pathway structure",
+        "properties": {
+          "mdc_phase": {
+            "type": "object",
+            "properties": {
+              "degree_name": {
+                "type": "string"
+              },
+              "courses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "credits": {
+                      "type": "number"
+                    }
+                  }
+                }
+              },
+              "duration_semesters": {
+                "type": "number"
+              },
+              "total_cost": {
+                "type": "number"
+              },
+              "total_credits": {
+                "type": "number"
+              }
+            }
+          },
+          "fiu_phase": {
+            "type": "object",
+            "properties": {
+              "degree_name": {
+                "type": "string"
+              },
+              "transfer_credits": {
+                "type": "number"
+              },
+              "required_courses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "credits": {
+                      "type": "number"
+                    }
+                  }
+                }
+              },
+              "duration_semesters": {
+                "type": "number"
+              },
+              "total_cost": {
+                "type": "number"
+              },
+              "remaining_credits": {
+                "type": "number"
+              }
+            }
+          },
+          "advanced_phase": {
+            "type": "object",
+            "properties": {
+              "masters": {
+                "type": "object",
+                "properties": {
+                  "degree_name": {
+                    "type": "string"
+                  },
+                  "duration_years": {
+                    "type": "number"
+                  },
+                  "total_cost": {
+                    "type": "number"
+                  },
+                  "total_credits": {
+                    "type": "number"
+                  }
+                }
+              },
+              "phd": {
+                "type": "object",
+                "properties": {
+                  "degree_name": {
+                    "type": "string"
+                  },
+                  "duration_years": {
+                    "type": "number"
+                  },
+                  "funding_available": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          "total_summary": {
+            "type": "object",
+            "properties": {
+              "total_years": {
+                "type": "number"
+              },
+              "total_cost": {
+                "type": "number"
+              },
+              "career_outlook": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "required": [
+      "conversation"
+    ]
+  }
