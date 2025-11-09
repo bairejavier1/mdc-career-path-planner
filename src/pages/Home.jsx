@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { invokeLLM } from "@/api/geminiClient";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles, TrendingUp } from "lucide-react";
+import { Sparkles, TrendingUp, FileDown } from "lucide-react";
 import { motion } from "framer-motion";
+import html2pdf from "html2pdf.js";
 import ChatMessage from "../components/chat/ChatMessage";
 import ChatInput from "../components/chat/ChatInput";
 import SummaryCard from "../components/pathway/SummaryCard";
@@ -19,6 +20,7 @@ export default function Home() {
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [pathway, setPathway] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () =>
@@ -40,10 +42,8 @@ export default function Home() {
       const response = await invokeLLM({ prompt: message });
       console.log("AI response:", response);
 
-      // if Gemini returns structured data, show cards
       if (response.pathway_data) {
         setPathway(response.pathway_data);
-
         setConversation([
           ...newConv,
           {
@@ -79,6 +79,28 @@ export default function Home() {
       ]);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // 🧾 PDF Export Function
+  const handleExportPDF = async () => {
+    try {
+      setExporting(true);
+      const element = document.getElementById("pathway-results");
+
+      const options = {
+        margin: 0.5,
+        filename: "My_Educational_Pathway.pdf",
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+      };
+
+      await html2pdf().from(element).set(options).save();
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -206,7 +228,7 @@ export default function Home() {
           </Card>
         </motion.div>
 
-        {/* --- GENERATED PATHWAY BELOW CHAT --- */}
+        {/* --- GENERATED PATHWAY --- */}
         {pathway && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -214,18 +236,44 @@ export default function Home() {
             transition={{ delay: 0.5, duration: 0.8 }}
             className="mt-12 space-y-8"
           >
-            <PathwayStep phase={pathway.mdc_phase} index={0} totalPhases={3} />
-            <PathwayStep phase={pathway.fiu_phase} index={1} totalPhases={3} />
-            {pathway.advanced_phase?.masters && (
+            {/* Export button */}
+            <div className="flex justify-end">
+              <button
+                onClick={handleExportPDF}
+                disabled={exporting}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-md"
+              >
+                <FileDown className="w-4 h-4" />
+                {exporting ? "Generating PDF..." : "Export to PDF"}
+              </button>
+            </div>
+
+            {/* Pathway results container */}
+            <div
+              id="pathway-results"
+              className="space-y-8 bg-white p-6 rounded-xl shadow-lg"
+            >
               <PathwayStep
-                phase={pathway.advanced_phase.masters}
-                index={2}
+                phase={pathway.mdc_phase}
+                index={0}
                 totalPhases={3}
               />
-            )}
-            {pathway.total_summary && (
-              <SummaryCard summary={pathway.total_summary} />
-            )}
+              <PathwayStep
+                phase={pathway.fiu_phase}
+                index={1}
+                totalPhases={3}
+              />
+              {pathway.advanced_phase?.masters && (
+                <PathwayStep
+                  phase={pathway.advanced_phase.masters}
+                  index={2}
+                  totalPhases={3}
+                />
+              )}
+              {pathway.total_summary && (
+                <SummaryCard summary={pathway.total_summary} />
+              )}
+            </div>
           </motion.div>
         )}
       </div>
